@@ -1,9 +1,9 @@
-"""FXPak Pro über QUsb2Snes: ROM auf die SD-Karte legen und starten.
+"""FXPak Pro via QUsb2Snes: put the ROM on the SD card and start it.
 
-QUsb2Snes (läuft auf dem PC) bietet eine WebSocket auf ws://localhost:23074. Ablauf wie im
-SMWC Downloader & Patcher: Name, DeviceList, Attach, (MakeDir), PutFile, Info (wartet, bis die
-Datei geschrieben ist), Boot. Der SD2SNES schließt die Verbindung, wenn man ein fehlendes
-Verzeichnis listet; deshalb wird immer das Elternverzeichnis gelistet.
+QUsb2Snes (runs on the PC) offers a WebSocket at ws://localhost:23074. Flow as in the
+SMWC Downloader & Patcher: Name, DeviceList, Attach, (MakeDir), PutFile, Info (waits until the
+file is written), Boot. The SD2SNES closes the connection when a missing directory is listed,
+so the parent directory is always listed instead.
 """
 import json
 import os
@@ -21,7 +21,7 @@ class FxpakError(Exception):
 
 
 class FxpakUnreachable(FxpakError):
-    """QUsb2Snes läuft nicht, ist nicht erreichbar oder findet kein Gerät (dann fragt der Launcher nach)."""
+    """QUsb2Snes is not running, not reachable, or finds no device (the launcher then asks the user)."""
 
 
 def safe_name(name: str) -> str:
@@ -30,7 +30,7 @@ def safe_name(name: str) -> str:
 
 
 def remote_path(folder: str, rel_path: str) -> str:
-    """Zielpfad auf dem Modul: <Ordner>/<Unterordner>/<Datei>, nur mit Vorwärtsschrägstrichen."""
+    """Target path on the device: <folder>/<subfolder>/<file>, forward slashes only."""
     parts = [p for p in folder.replace("\\", "/").split("/") if p and p not in (".", "..")]
     parts += [safe_name(p) for p in rel_path.replace("\\", "/").split("/") if p and p not in (".", "..")]
     return "/" + "/".join(parts)
@@ -74,7 +74,7 @@ class Client:
             device = devices[0]
         self._send("Attach", [device])
         self.sleep(0.3)
-        self._ask("Info", timeout=8.0)  # prüft, dass das Gerät antwortet
+        self._ask("Info", timeout=8.0)  # checks that the device answers
         return device
 
     def list_dir(self, path: str) -> list:
@@ -95,7 +95,7 @@ class Client:
                 self.sleep(0.3)
 
     def dir_exists(self, path: str) -> bool:
-        """Prüft über das Elternverzeichnis, nie durch Listen des gesuchten (der SD2SNES trennt dann)."""
+        """Checks via the parent directory, never by listing the one searched for (the SD2SNES disconnects then)."""
         current = ""
         for part in [p for p in path.split("/") if p]:
             existing = {n.lower(): n for n, is_dir in self.list_dir(current or "/") if is_dir}
@@ -121,10 +121,10 @@ class Client:
                 sent += len(chunk)
                 if progress:
                     progress(sent / size)
-        self._ask("Info", timeout=120.0)  # kommt erst, wenn die Datei geschrieben ist
+        self._ask("Info", timeout=120.0)  # only answers once the file is written
 
     def boot(self, path: str) -> bool:
-        """Startet die ROM. Boot hat keine Antwort; Info läuft danach und zeigt, was läuft."""
+        """Starts the ROM. Boot has no reply; Info runs afterwards and shows what is running."""
         self._send("Boot", [path])
         wanted = path.rsplit("/", 1)[-1].lower()
         for _ in range(3):
@@ -142,7 +142,7 @@ class Client:
 
 
 def play(cfg: dict, local_rom: str, status=lambda s: None, progress=None, connect=ws_connect, sleep=time.sleep) -> None:
-    """Legt die ROM bei Bedarf auf den FXPak und startet sie dort."""
+    """Puts the ROM on the FXPak if needed and starts it there."""
     try:
         port = int(cfg.get("fxpak_port") or 23074)
     except ValueError:

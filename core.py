@@ -1,6 +1,6 @@
-"""Kern des Launchers: Adresse lesen, Patch laden (nur von vertrauten Domains), patchen, starten.
+"""Launcher core: read the link, download the patch (trusted domains only), patch, launch.
 
-Format: smwplay://play?url=<https-Adresse einer .bps oder .zip>[&id=…][&title=…][&sha256=…]
+Format: smwplay://play?url=<https address of a .bps or .zip>[&id=…][&title=…][&sha256=…]
 """
 import hashlib
 import io
@@ -21,10 +21,10 @@ SCHEME = "smwplay"
 USER_AGENT = "SMWPlayLauncher/1.0"
 MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024
 MAX_ZIP_ENTRIES = 500
-SMW_USA_CRC = 0xB19ED489  # SMW (U) [!], ohne Header
+SMW_USA_CRC = 0xB19ED489  # SMW (U) [!], without header
 
-# Vertraute Seiten pflegt allein der Betreiber von Spinjump (hier im Code, später evtl. eine signierte
-# Liste von spinjump.club). Spieler tragen nichts ein. Eine Domain gilt samt Subdomains.
+# Only the Spinjump operator maintains the trusted sites (here in the code, later maybe a signed
+# list from spinjump.club). Players cannot add anything. A domain includes its subdomains.
 BUILTIN_TRUSTED = ("spinjump.club", "smwcentral.net")
 
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:@._+/-]{0,119}$")
@@ -34,11 +34,11 @@ DEFAULTS = {
     "rom_path": "",
     "hacks_dir": "",
     "emulator_path": "",
-    "emulator_args": "",  # leer = Voreinstellung passend zum Emulator (siehe emulator_defaults)
-    "target": "emulator",  # "emulator" oder "fxpak"
+    "emulator_args": "",  # empty = default for the emulator (see emulator_defaults)
+    "target": "emulator",  # "emulator" or "fxpak"
     "fxpak_host": "localhost",
     "fxpak_port": "23074",
-    "fxpak_device": "",  # leer = erstes Gerät
+    "fxpak_device": "",  # empty = first device
     "fxpak_folder": "/ROMS/Spinjump",
 }
 
@@ -48,7 +48,7 @@ class LauncherError(Exception):
 
 
 class FxpakUnavailable(LauncherError):
-    """QUsb2Snes wurde nicht gefunden. Der Aufrufer darf anbieten, es erneut zu versuchen oder zum Emulator zu wechseln."""
+    """QUsb2Snes was not found. The caller may offer to retry or to switch to the emulator."""
 
 
 # ---- Einstellungen ----
@@ -85,7 +85,7 @@ def save_config(cfg: dict, path=None) -> None:
 
 
 def missing_settings(cfg: dict) -> list:
-    """Pflichtfelder, die noch fehlen. Der Emulator ist optional (dann öffnet Windows die ROM)."""
+    """Required fields that are still missing. The emulator is optional (the system then opens the ROM)."""
     out = []
     if not os.path.isfile(cfg["rom_path"]):
         out.append("Super Mario World ROM")
@@ -109,9 +109,9 @@ def host_trusted(host: str) -> bool:
     return any(host == d or host.endswith("." + d) for d in BUILTIN_TRUSTED)
 
 
-# ---- Emulatoren: passende Argumente je nach Programm ----
+# ---- Emulators: matching arguments per program ----
 
-# Reihenfolge: bevorzugter Core zuerst. Name in cores/ ohne Endung.
+# Order: preferred core first. Name in cores/ without extension.
 RETROARCH_CORES = ("snes9x_libretro", "bsnes_libretro", "bsnes_hd_beta_libretro", "mesen-s_libretro", "snes9x2010_libretro")
 
 EMULATORS = (
@@ -126,7 +126,7 @@ EMULATORS = (
 
 
 def detect_emulator(path: str):
-    """Name des Emulators nach dem Dateinamen, sonst None."""
+    """Emulator name from the file name, otherwise None."""
     name = os.path.splitext(os.path.basename(path or ""))[0].lower()
     for key, label in EMULATORS:
         if key in name:
@@ -135,7 +135,7 @@ def detect_emulator(path: str):
 
 
 def emulator_defaults(path: str) -> str:
-    """Voreingestellte Argumente für einen Emulator. {rom} steht für die gepatchte ROM."""
+    """Default arguments for an emulator. {rom} stands for the patched ROM."""
     if detect_emulator(path) == "RetroArch":
         cores = os.path.join(os.path.dirname(path), "cores")
         for core_name in RETROARCH_CORES:
@@ -143,14 +143,14 @@ def emulator_defaults(path: str) -> str:
             candidate = os.path.join(cores, core_name + ext)
             if os.path.isfile(candidate):
                 return f'-L "{candidate}" "{{rom}}"'
-        return '"{rom}"'  # ohne Core fragt RetroArch selbst
+        return '"{rom}"'  # without a core RetroArch asks by itself
     return '"{rom}"'
 
 
-# ---- Adresse lesen und erzeugen ----
+# ---- Reading and building the link ----
 
 def check_download_url(url: str) -> str:
-    """Gibt den Host zurück. Nur https, kein Benutzername, ein richtiger Host."""
+    """Returns the host. https only, no username, a real host."""
     if len(url) > 2000:
         raise LauncherError("The address is too long.")
     u = urllib.parse.urlsplit(url)
@@ -179,7 +179,7 @@ def parse_url(link: str) -> dict:
 
 
 def build_link(url: str, id_=None, title=None, sha256=None) -> str:
-    """Link-Generator: aus einer Patch-Adresse den Protokoll-Link bauen (und dabei prüfen)."""
+    """Link generator: build the protocol link from a patch address (and validate it)."""
     url = url.strip()
     check_download_url(url)
     q = [("url", url)]
@@ -203,7 +203,7 @@ def _safe(name: str) -> str:
 
 
 def _clean(name: str) -> str:
-    """Dateiname so lesbar wie möglich: Leerzeichen und Apostrophe bleiben, nur Unzulässiges fällt weg."""
+    """File name as readable as possible: spaces and apostrophes stay, only the invalid parts go."""
     cleaned = re.sub(r'[<>:"/\|?*\x00-\x1f]+', "_", name).strip(" .")
     return cleaned or "patch"
 
@@ -213,7 +213,7 @@ def _stem(path: str) -> str:
 
 
 def hack_name(req: dict) -> str:
-    """Name des Hacks, wenn keine BPS-Datei ihn liefert: Titel, sonst Kennung, sonst Host und Hash der Adresse."""
+    """Hack name when no BPS file provides one: title, else id, else host and hash of the address."""
     if req.get("title"):
         return _clean(req["title"])
     if req["id"]:
@@ -222,10 +222,10 @@ def hack_name(req: dict) -> str:
 
 
 def rom_targets(cfg: dict, req: dict, members=None) -> list:
-    """Ablageorte der gepatchten ROMs: <Hacks-Ordner>/<Name>/<Name>.sfc, benannt wie die BPS-Datei.
+    """Where the patched ROMs go: <hacks folder>/<name>/<name>.sfc, named like the BPS file.
 
-    Ein ZIP mit mehreren Patches: Ordner nach dem Hack, darin je Patch eine .sfc nach dem Namen der .bps.
-    Ohne Dateinamen (direkter Link): Titel oder Kennung.
+    A ZIP with several patches: a folder named after the hack, with one .sfc per patch named after the .bps.
+    Without a file name (direct link): title or id.
     """
     base = cfg["hacks_dir"]
     if not members:
@@ -236,18 +236,18 @@ def rom_targets(cfg: dict, req: dict, members=None) -> list:
         return [os.path.join(base, name, name + ".sfc")]
     folder = os.path.join(base, hack_name(req))
     stems = [_stem(m) for m in members]
-    if len(set(stems)) < len(stems):  # gleiche Namen in verschiedenen Unterordnern: Pfad mit dazunehmen
+    if len(set(stems)) < len(stems):  # same names in different subfolders: include the path
         stems = [_clean(os.path.splitext(m.replace("\\", "/"))[0].replace("/", "-")) for m in members]
     return [os.path.join(folder, st + ".sfc") for st in stems]
 
 
-# ---- Bibliothek: welche Kennung ist schon gepatcht? ----
-# Der Dateiname eines ZIP-Hacks hängt vom Inhalt des ZIP ab. Damit man vor dem Laden weiß, ob es
-# den Hack schon gibt, merkt sich eine kleine Datei im Hacks-Ordner zu jeder Kennung die fertigen
-# ROMs (bei mehreren Patches im ZIP alle) und die zuletzt gestartete.
+# ---- Library: which id is already patched? ----
+# The file name of a ZIP hack depends on the ZIP's contents. To know before downloading whether the
+# hack already exists, a small file in the hacks folder remembers, per id, the finished ROMs
+# (all of them if the ZIP has several patches) and the one started last.
 
 def cache_key(req: dict) -> str:
-    # "v2|": Bibliothekseinträge aus dem früheren Namensschema werden ignoriert (sonst startet die alte ROM)
+    # "v2|": library entries from the earlier naming scheme are ignored (otherwise the old ROM would start)
     return "v2|" + (req["id"] or "url:" + hashlib.sha1(req["url"].encode()).hexdigest())
 
 
@@ -265,7 +265,7 @@ def _library_read(cfg: dict) -> dict:
 
 
 def _inside_hacks_dir(cfg: dict, rel) -> str:
-    """Absoluter Pfad, wenn er im Hacks-Ordner liegt und existiert, sonst ''."""
+    """Absolute path if it is inside the hacks folder and exists, otherwise ''."""
     if not isinstance(rel, str):
         return ""
     path = os.path.normpath(os.path.join(cfg["hacks_dir"], rel))
@@ -274,7 +274,7 @@ def _inside_hacks_dir(cfg: dict, rel) -> str:
 
 
 def library_find(cfg: dict, req: dict):
-    """(vorhandene ROMs, zuletzt gestartete oder None) zu dieser Kennung."""
+    """(existing ROMs, last started one or None) for this id."""
     entry = _library_read(cfg).get(cache_key(req))
     files, last = [], None
     if isinstance(entry, dict):
@@ -339,7 +339,7 @@ def download(url: str, progress=None) -> bytes:
 
 
 def bps_members(data: bytes) -> dict:
-    """Aus einem ZIP die .bps-Dateien lesen (nur im Speicher, nichts wird entpackt oder ausgeführt)."""
+    """Read the .bps files from a ZIP (in memory only, nothing is extracted or executed)."""
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
         infos = z.infolist()
@@ -359,7 +359,7 @@ def bps_members(data: bytes) -> dict:
 
 
 def _pick(cfg: dict, req: dict, files: list, last, choose) -> str:
-    """Bei mehreren fertigen ROMs fragen, welche gestartet wird (die letzte ist vorgewählt)."""
+    """With several finished ROMs, ask which one starts (the last one is preselected)."""
     if len(files) == 1:
         chosen = files[0]
     else:
@@ -382,11 +382,11 @@ def _patch_to(rom: bytes, patch: bytes, target: str) -> None:
 
 
 def prepare(cfg: dict, req: dict, status=lambda s: None, progress=None, choose=None) -> str:
-    """Lädt und patcht, falls nötig. Gibt den Pfad der ROM zurück, die gestartet werden soll.
+    """Downloads and patches if needed. Returns the path of the ROM to start.
 
-    Enthält ein ZIP mehrere BPS-Patches, werden alle gepatcht und in einem Ordner abgelegt;
-    choose(namen, vorgewählt) -> name sagt, welche gestartet wird (None = abgebrochen).
-    Was schon da ist, wird weder geladen noch neu gepatcht.
+    If a ZIP contains several BPS patches, all are patched and stored in one folder;
+    choose(names, preselected) -> name says which one starts (None = cancelled).
+    Whatever already exists is neither downloaded nor patched again.
     """
     files, last = library_find(cfg, req)
     if files:
@@ -416,7 +416,7 @@ def prepare(cfg: dict, req: dict, status=lambda s: None, progress=None, choose=N
             _patch_to(rom, patch, target)
             done.append(target)
         except BpsError as e:
-            first_error = first_error or e  # ein unpassender Patch im ZIP stoppt die anderen nicht
+            first_error = first_error or e  # one non-matching patch in the ZIP does not stop the others
         except OSError as e:
             raise LauncherError(f"Could not write the ROM: {e}")
     if not done:
@@ -435,7 +435,7 @@ def build_args(cfg: dict, rom: str) -> list:
 
 
 def switch_to_emulator(cfg: dict, path=None) -> None:
-    """Merkt sich dauerhaft, dass auf dem Emulator gespielt wird (z. B. wenn QUsb2Snes fehlte)."""
+    """Remembers permanently that the emulator is used (e.g. when QUsb2Snes was missing)."""
     cfg["target"] = "emulator"
     save_config(cfg, path)
 
@@ -454,7 +454,7 @@ def launch(cfg: dict, rom: str, status=lambda s: None, progress=None) -> None:
     emu = cfg["emulator_path"]
     if not emu:
         if hasattr(os, "startfile"):
-            os.startfile(rom)  # Standardprogramm für .sfc
+            os.startfile(rom)  # default program for .sfc
             return
         opener = "open" if sys.platform == "darwin" else "xdg-open"
         try:
@@ -470,7 +470,7 @@ def launch(cfg: dict, rom: str, status=lambda s: None, progress=None) -> None:
     subprocess.Popen([emu, *build_args(cfg, rom)], cwd=os.path.dirname(emu))
 
 
-# ---- Adresse "smwplay://" beim System anmelden ----
+# ---- Register the "smwplay://" scheme with the system ----
 
 def register_command() -> str:
     if getattr(sys, "frozen", False):
@@ -498,7 +498,7 @@ def _desktop_entry() -> str:
 
 def register_protocol() -> None:
     if sys.platform == "win32":
-        import winreg  # nur Windows
+        import winreg  # Windows only
 
         root = rf"Software\Classes\{SCHEME}"
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, root) as k:
@@ -507,7 +507,7 @@ def register_protocol() -> None:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, root + r"\shell\open\command") as k:
             winreg.SetValue(k, "", winreg.REG_SZ, register_command())
     elif sys.platform == "darwin":
-        pass  # macOS kennt die Adresse über die Info.plist der .app (siehe launcher/build.md), nichts zu tun
+        pass  # macOS learns the scheme from the .app's Info.plist (see smwplay.spec), nothing to do
     else:
         path = _desktop_file()
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -531,7 +531,7 @@ def is_registered() -> bool:
         except (OSError, ImportError):
             return False
     if sys.platform == "darwin":
-        return getattr(sys, "frozen", False)  # als .app gebaut = angemeldet
+        return getattr(sys, "frozen", False)  # built as .app = registered
     try:
         with open(_desktop_file(), encoding="utf-8") as f:
             return f.read() == _desktop_entry()

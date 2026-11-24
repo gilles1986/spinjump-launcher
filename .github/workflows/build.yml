@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Tk unter Linux
+      - name: Tk on Linux
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb
       - run: pip install -r requirements.txt pyinstaller
@@ -36,13 +36,13 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a python -m pytest tests; else python -m pytest tests; fi
-      - name: Bauen
+      - name: Build the program
         run: python -m PyInstaller --noconfirm smwplay.spec
-      - name: Linux-Programm packen (behält das Ausführungsrecht)
+      - name: Pack the Linux binary (keeps the executable bit)
         if: runner.os == 'Linux'
         working-directory: dist
         run: tar -czf SMWPlayLauncher-linux.tar.gz SMWPlayLauncher
-      - name: macOS-App zippen
+      - name: Zip the macOS app
         if: runner.os == 'macOS'
         working-directory: dist
         run: ditto -c -k --keepParent SMWPlayLauncher.app SMWPlayLauncher-macos.zip
@@ -63,7 +63,7 @@ jobs:
         with:
           path: files
           merge-multiple: true
-      - name: Release anlegen
+      - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --title "SMW Play Launcher $GITHUB_REF_NAME" --generate-notes

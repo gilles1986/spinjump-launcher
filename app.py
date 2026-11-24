@@ -1,7 +1,7 @@
-"""SMW Play Launcher: Einmal einrichten, danach startet "Play" auf einer Seite den Hack direkt.
+"""SMW Play Launcher: set it up once, then "Play" on a website starts the hack directly.
 
-Ohne Argument öffnet sich die Einrichtung. Mit einer Adresse (smwplay://play?url=…) wird geladen,
-gepatcht und im Emulator gestartet.
+Without an argument the setup window opens. With an address (smwplay://play?url=…) it downloads,
+patches and starts the hack in the emulator.
 """
 import queue
 import sys
@@ -48,7 +48,7 @@ def run_play(link: str) -> int:
     fx_ready = threading.Event()
     fx_box = {}
 
-    def choose(names, last=None):  # läuft im Arbeitsthread, Dialog im Hauptthread
+    def choose(names, last=None):  # runs in the worker thread, the dialog in the main thread
         events.put(("choose", (names, last)))
         pick_ready.wait()
         return pick_box.get("v")
@@ -63,7 +63,7 @@ def run_play(link: str) -> int:
                     core.launch(cfg, rom, lambda s: events.put(("status", s)), lambda p: events.put(("progress", p)))
                     break
                 except core.FxpakUnavailable as e:
-                    # Keine stille Ausweichlösung: erst fragen, dann (auf Wunsch) dauerhaft umstellen.
+                    # No silent fallback: ask first, then (if wanted) switch permanently.
                     events.put(("fxpak_down", str(e)))
                     fx_ready.wait()
                     fx_ready.clear()
@@ -157,7 +157,7 @@ def run_play(link: str) -> int:
 
 
 def link_generator(parent) -> None:
-    """Kleines Werkzeug für Seitenbetreiber und Neugierige: Patch-Adresse rein, Protokoll-Link raus."""
+    """Small tool for site owners and the curious: patch address in, protocol link out."""
     top = tk.Toplevel(parent)
     top.title("Link generator")
     f = ttk.Frame(top, padding=16)
@@ -322,7 +322,7 @@ def run_setup(pending=None) -> None:
 
 
 def _mac_launch_url():
-    """macOS reicht smwplay://-Links nicht als Argument, sondern als Ereignis weiter. Kurz darauf warten."""
+    """macOS passes smwplay:// links as an event, not as an argument. Wait briefly for it."""
     root = tk.Tk()
     root.withdraw()
     got = []

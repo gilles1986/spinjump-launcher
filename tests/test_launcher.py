@@ -22,7 +22,7 @@ def varint(x):
 
 
 def make_patch(source, target, literal_at=None):
-    """Kleiner Encoder: SourceRead für Gleiches, TargetRead für Abweichendes, danach TargetCopy."""
+    """Small encoder: SourceRead for equal bytes, TargetRead for differing ones, then TargetCopy."""
     body = bytearray()
     body += varint(len(source)) + varint(len(target)) + varint(0)
     i = 0
@@ -175,13 +175,13 @@ def test_prepare_zip_single_and_all_patches(tmp_path, monkeypatch):
     monkeypatch.setattr(core, "download", lambda *a, **k: _zip({"readme.txt": "hi", "hack.bps": patch, "evil.exe": "MZ"}))
     out = core.prepare(cfg, req)
     assert open(out, "rb").read() == DST
-    assert out == os.path.join(cfg["hacks_dir"], "hack", "hack.sfc")  # Ordner und Datei heißen wie die BPS-Datei
+    assert out == os.path.join(cfg["hacks_dir"], "hack", "hack.sfc")  # folder and file are named like the BPS file
 
-    # mehrere BPS: alle werden gepatcht, in einem Ordner; gefragt wird nur, welche startet
+    # several BPS: all are patched, in one folder; only which one starts is asked
     cfg2 = dict(cfg, hacks_dir=str(tmp_path / "h2"))
     monkeypatch.setattr(core, "download", lambda *a, **k: _zip({"a.bps": patch, "sub/b.bps": patch}))
     with pytest.raises(core.LauncherError):
-        core.prepare(cfg2, req)  # ohne Auswahl abgebrochen
+        core.prepare(cfg2, req)  # cancelled without a choice
     asked = []
     out = core.prepare(cfg2, req, choose=lambda names, last: asked.append((names, last)) or names[1])
     assert asked == [(["a", "b"], None)]
@@ -200,7 +200,7 @@ def test_multi_zip_asks_again_but_never_downloads_or_patches_again(tmp_path, mon
     seen = []
     second = core.prepare(cfg, req, choose=lambda names, last: seen.append(last) or "a")
     assert len(calls) == 1
-    assert seen == ["b"]  # die zuletzt gestartete ist vorgewählt
+    assert seen == ["b"]  # the last started one is preselected
     assert os.path.basename(first) == "b.sfc" and os.path.basename(second) == "a.sfc"
     third = core.prepare(cfg, req, choose=lambda names, last: last)
     assert os.path.basename(third) == "a.sfc"
@@ -209,10 +209,10 @@ def test_multi_zip_asks_again_but_never_downloads_or_patches_again(tmp_path, mon
 def test_wrong_patch_in_zip_does_not_stop_the_others(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
     good = make_patch(SRC, DST)
-    other = make_patch(SRC[::-1], DST)  # für eine andere ROM gemacht
+    other = make_patch(SRC[::-1], DST)  # made for a different ROM
     monkeypatch.setattr(core, "download", lambda *a, **k: _zip({"good.bps": good, "other.bps": other}))
     req = core.parse_url(core.build_link(U, id_="x:mixed"))
-    out = core.prepare(cfg, req, choose=lambda names, last: pytest.fail("nur ein Patch passt"))
+    out = core.prepare(cfg, req, choose=lambda names, last: pytest.fail("only one patch fits"))
     assert os.path.basename(out) == "good.sfc"
 
 
@@ -278,7 +278,7 @@ def test_zip_hack_is_not_downloaded_twice(tmp_path, monkeypatch):
     monkeypatch.setattr(core, "download", lambda *a, **k: calls.append(1) or _zip({"Hack.bps": patch}))
     req = core.parse_url(core.build_link(U, id_="smwcentral:hack-1"))
     first = core.prepare(cfg, req)
-    assert first == os.path.join(cfg["hacks_dir"], "Hack", "Hack.sfc")  # Name wie die BPS-Datei
+    assert first == os.path.join(cfg["hacks_dir"], "Hack", "Hack.sfc")  # name like the BPS file
     status = []
     second = core.prepare(cfg, req, status.append)
     assert second == first and len(calls) == 1

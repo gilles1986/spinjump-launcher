@@ -11,7 +11,7 @@ const PAGE = `<div id="submission-header">
 <a id="file-download-button" class="button suggested" href="https://dl.smwcentral.net/39701/Saphros_Blindrace_2.zip">Download</a>
 </div></div></div>`;
 
-// Minimaler Ersatz für document, der die Fixture liest
+// Minimal stand-in for document that reads the fixture
 function fakeDoc(html) {
 	const inserted = [];
 	const href = /id="file-download-button"[^>]*href="([^"]*)"/.exec(html);
@@ -33,7 +33,7 @@ test('slug', () => {
 	assert.ok(slug('x'.repeat(200)).length <= 60);
 });
 
-test('Link für die echte Seite', () => {
+test('link for the real page', () => {
 	const link = buildLink('https://dl.smwcentral.net/39701/Saphros_Blindrace_2.zip', 'Saphros Blindrace #2');
 	const u = new URL(link);
 	assert.strictEqual(u.protocol, 'smwplay:');
@@ -43,13 +43,13 @@ test('Link für die echte Seite', () => {
 	assert.ok(!link.includes('+'));
 });
 
-test('ohne Titel kommt der Name aus der Datei', () => {
+test('without a title the name comes from the file', () => {
 	const u = new URL(buildLink('https://dl.smwcentral.net/5/My_Hack.zip', ''));
 	assert.strictEqual(u.searchParams.get('id'), 'smwcentral:my-hack-5');
 	assert.strictEqual(u.searchParams.get('title'), null);
 });
 
-test('nur Dateien von dl.smwcentral.net', () => {
+test('only files from dl.smwcentral.net', () => {
 	for (const bad of [
 		'http://dl.smwcentral.net/1/a.zip',
 		'https://evil.example/1/a.zip',
@@ -64,7 +64,7 @@ test('nur Dateien von dl.smwcentral.net', () => {
 	}
 });
 
-test('setzt den Knopf vor "Download", nur einmal', () => {
+test('places the button before "Download", only once', () => {
 	const doc = fakeDoc(PAGE);
 	assert.strictEqual(addPlayButton(doc), true);
 	const { el } = doc.inserted[0];
@@ -75,7 +75,7 @@ test('setzt den Knopf vor "Download", nur einmal', () => {
 	assert.strictEqual(doc.inserted.length, 1);
 });
 
-test('Seiten ohne Download-Knopf bleiben unberührt', () => {
+test('pages without a download button stay untouched', () => {
 	const doc = fakeDoc('<div>nichts</div>');
 	assert.strictEqual(addPlayButton(doc), false);
 	assert.strictEqual(doc.inserted.length, 0);

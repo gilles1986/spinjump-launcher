@@ -1,4 +1,4 @@
-"""Baut SMWPlayExtension.zip aus launcher/extension (ohne Tests). Aufruf: python launcher/build-extension.py [Zielordner]"""
+"""Builds SMWPlayExtension.zip from extension/ (without tests). Usage: python build-extension.py [target folder]"""
 import os
 import sys
 import zipfile

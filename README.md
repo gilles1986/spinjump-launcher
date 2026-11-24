@@ -1,71 +1,78 @@
 # SMW Play Launcher
 
-Kleines Windows-Programm (Python, nur Standardbibliothek). Einmal einrichten, danach startet **Play** auf einer Seite den Hack direkt im Emulator. Das Format ist nicht an Spinjump gebunden: es soll später auch für eine SMWC-Erweiterung und den SMWC Downloader & Patcher taugen.
+A small desktop program (Python, standard library plus `websockets` for FXPak) for Windows, Linux and macOS. Set it up once, then **Play** on a website starts the hack directly in your emulator. The link format is not tied to Spinjump: it is meant to work with other sites too, for example an SMW Central extension or the SMWC Downloader & Patcher.
 
-## Protokoll
+Requires your own unmodified Super Mario World ROM. No ROMs are hosted or downloaded.
+
+## Download
+
+Builds for all three systems come from GitHub Actions (`.github/workflows/build.yml`):
+
+- **Release:** pushing a tag like `v0.1.0` builds everything and publishes a GitHub release with `SMWPlayLauncher.exe` (Windows), `SMWPlayLauncher-linux.tar.gz` and `SMWPlayLauncher-macos.zip`.
+- **Every push:** the same files are attached to the workflow run as artifacts.
+
+## Link format
 
 ```
-smwplay://play?url=<https-Adresse einer .bps oder .zip>[&id=<Kennung>][&title=<Titel>][&sha256=<Prüfsumme>]
+smwplay://play?url=<https address of a .bps or .zip>[&id=<id>][&title=<title>][&sha256=<checksum>]
 ```
 
-- `url`: Pflicht, nur `https`, kein Benutzername. Direkt auf eine `.bps` oder auf ein `.zip` mit `.bps` darin (bei mehreren fragt der Launcher).
-- `id`: `quelle:name` als Schlüssel für die Bibliothek (nicht für den Dateinamen), z. B. `spinjump:mein-hack@1.0`. Ohne `id`: Host plus Hash der Adresse.
-- `title`: nur Anzeige. `sha256`: Prüfsumme des Downloads (vor dem Entpacken); stimmt sie nicht, wird abgebrochen.
+- `url`: required, `https` only, no username. Either a `.bps` directly or a `.zip` containing `.bps` files (the launcher asks if there are several).
+- `id`: `source:name` used as the library key (not for file names), e.g. `spinjump:my-hack@1.0`. Without an `id`: host plus a hash of the address.
+- `title`: display only. `sha256`: checksum of the download (before unzipping); the launcher aborts if it does not match.
 
-Spinjump setzt den Link in `web/src/lib/launcher.ts`. Der **Link-Generator** (kleiner Link unten im Einrichtungsfenster) baut ihn aus einer Adresse.
+The **link generator** (small link at the bottom of the setup window) builds a link from an address.
 
-## Ablauf
+## How it works
 
-Windows startet den Launcher mit dem Link (Registrierung unter `HKCU\Software\Classes\smwplay`, beim Speichern der Einrichtung). Der Launcher lädt die Datei, zieht bei einem ZIP die `.bps` heraus, wendet sie auf die ROM an (Prüfsummen von Quelle, Ergebnis und Patch) und legt `<Hacks-Ordner>/<Name>/<Name>.sfc` ab, wobei `<Name>` der Name der BPS-Datei ist (z. B. `Mario's Inferno/Mario's Inferno.sfc`; ohne Dateinamen, also bei einem direkten Link, der Titel). Ist sie schon da, wird nichts geladen: der Launcher führt im Hacks-Ordner eine kleine Bibliothek (`.smwplay-library.json`, Kennung → fertige ROM) und schaut dort vor dem Download nach. Das gilt auch für ZIPs (dort hängt der Dateiname vom Inhalt ab). Enthält ein ZIP **mehrere** BPS-Patches, werden alle gepatcht und in einem Ordner abgelegt (`<Hack>/<Patch>.sfc`, Ordner nach dem Titel); gefragt wird nur, welcher startet (der zuletzt gestartete ist vorgewählt). Ein Patch, der nicht zur ROM passt, stoppt die anderen nicht. Gelöschte ROMs werden neu geladen. Danach startet der Emulator.
+The system starts the launcher with the link. It downloads the file, takes the `.bps` out of a ZIP, applies it to your ROM (checksums of source, result and patch are verified) and writes `<hacks folder>/<name>/<name>.sfc`, where `<name>` is the name of the BPS file (e.g. `Mario's Inferno/Mario's Inferno.sfc`; for a direct link without a file name, the title). If the ROM already exists nothing is downloaded: the launcher keeps a small library in the hacks folder (`.smwplay-library.json`, id → finished ROM) and checks it before downloading. If a ZIP contains **several** BPS patches, all are patched into one folder (`<hack>/<patch>.sfc`, folder named after the title); only which one starts is asked (the one started last is preselected). A patch that does not fit the ROM does not stop the others. Deleted ROMs are downloaded again. Then the emulator starts.
 
-**FXPak Pro:** In der Einrichtung kann das Ziel auf „FXPak Pro“ stehen. Der Launcher patcht wie gewohnt, kopiert die ROM über **QUsb2Snes** (`ws://localhost:23074`, muss laufen) nach `<Ordner>/<Name>/<Name>.sfc` auf die SD-Karte (Standard `/ROMS/Spinjump`) und startet sie dort. Liegt sie schon da, wird nur gestartet. Ablauf wie im SMWC Downloader & Patcher (`fxpak.py`, Abhängigkeit `websockets`). Mit einem Fake-Server getestet, nicht mit echter Hardware. Findet der Launcher QUsb2Snes nicht, springt er **nicht still** auf den Emulator: Er zeigt die Meldung mit „Erneut versuchen“, „Zum Emulator wechseln“ (merkt sich das dauerhaft, in der Einrichtung rückstellbar) und „Abbrechen“. Auch „Kein Gerät gefunden“ (QUsb2Snes läuft, der FXPak fehlt) fragt so nach.
+**FXPak Pro:** In the setup the target can be set to "FXPak Pro". The launcher patches as usual, copies the ROM through **QUsb2Snes** (`ws://localhost:23074`, must be running) to `<folder>/<name>/<name>.sfc` on the SD card (default `/ROMS/Spinjump`) and starts it there. If it is already there, it is only started. The flow follows the SMWC Downloader & Patcher (`fxpak.py`). Tested against a fake server, not with real hardware. If QUsb2Snes is not found, the launcher does **not** silently fall back to the emulator: it shows a message with "Try again", "Switch to emulator" (remembered permanently, can be undone in the setup) and "Cancel". "No device found" (QUsb2Snes runs but the FXPak is missing) asks the same way.
 
-Einstellungen: `%APPDATA%\Spinjump\launcher.json` (ROM, Hacks-Ordner, Emulator, Argumente).
+**Emulator:** The launcher recognizes it by file name (Mesen, Snes9x, bsnes, higan, ares, ZSNES, RetroArch) and uses matching arguments as long as the field is empty (usually just the ROM). For RetroArch it looks in `cores/` for an SNES core (snes9x, bsnes, Mesen-S) and starts with `-L <core> <rom>`. RetroArch is only tested against file names and the core search, not with a real start.
 
-**Emulator:** Der Launcher erkennt ihn am Dateinamen (Mesen, Snes9x, bsnes, higan, ares, ZSNES, RetroArch) und nimmt passende Argumente, solange das Feld leer ist (meist nur die ROM). Bei RetroArch sucht er in `cores/` einen SNES-Core (snes9x, bsnes, Mesen-S) und startet mit `-L <core> <rom>`. Mesen ist die Voreinstellung der Tests; RetroArch ist nur gegen Dateinamen und Core-Suche getestet, nicht mit einem echten Start.
+Settings are stored in `%APPDATA%\Spinjump\launcher.json` (Windows), `~/.config/Spinjump/launcher.json` (Linux) or `~/Library/Application Support/Spinjump/launcher.json` (macOS): ROM, hacks folder, emulator, arguments.
 
-## Sicherheit
+## Platforms
 
-- Geladen wird nur von **vertrauten Domains** (Domain samt Subdomains). Die Liste pflegt allein der Betreiber (`BUILTIN_TRUSTED` in `core.py`: `spinjump.club`, `smwcentral.net`); Spieler können nichts eintragen. Andere Domains werden abgelehnt, ebenso Weiterleitungen dorthin oder auf `http`.
-- Aus einem ZIP werden nur `.bps`-Dateien im Speicher gelesen. Nichts wird entpackt oder ausgeführt. Grenzen: 32 MB, 500 Einträge.
-- Dateinamen werden bereinigt, Ausgaben liegen nur im Hacks-Ordner. Nur BPS (E-29). Keine ROMs werden geladen oder gehostet.
+- **Windows:** `SMWPlayLauncher.exe`. Saving the setup registers `smwplay://` under `HKCU\Software\Classes\smwplay`.
+- **Linux:** one file, `SMWPlayLauncher` (unpack the `.tar.gz`). Saving the setup writes `~/.local/share/applications/smwplay.desktop` and sets the handler for `smwplay://` with `xdg-mime`. Without an emulator configured, `xdg-open` opens the ROM.
+- **macOS:** `SMWPlayLauncher.app` (in the ZIP). The app declares `smwplay://` in its Info.plist; the link arrives as an event (`::tk::mac::LaunchURL`), not as an argument. Emulators that are `.app` bundles are started with `open -a`. The app is not signed: on first start use right click → Open.
+- **Not verified on real machines:** the tests pass on all three systems in CI, but registering the link handler, the macOS link event and the built programs have not yet been tried on real Linux and macOS machines.
+- **Android:** not supported. It would need its own app (link handler, BPS patching, starting the emulator by intent).
 
+## Security
 
-## Browser-Erweiterung für SMW Central
+- Files are only downloaded from **trusted domains** (a domain includes its subdomains). Only the operator maintains the list (`BUILTIN_TRUSTED` in `core.py`: `spinjump.club`, `smwcentral.net`); players cannot add anything. Other domains are rejected, and so are redirects to them or to `http`.
+- From a ZIP only `.bps` files are read, in memory. Nothing is extracted or executed. Limits: 32 MB, 500 entries.
+- File names are sanitized and outputs only go inside the hacks folder. BPS only. No ROMs are downloaded or hosted.
 
-`extension/` ist eine kleine Chrome-Erweiterung (Manifest V3, auch für Firefox geeignet). Auf Detailseiten von smwcentral.net setzt sie neben „Download“ einen **Play**-Knopf, der den Launcher mit der Datei öffnet, die SMWC selbst verlinkt (`smwplay://play?url=https://dl.smwcentral.net/<id>/<Datei>&id=smwcentral:<name>-<id>&title=…`). Sie lädt nichts und braucht nur Zugriff auf die Seite. Der Ordner heißt wie die BPS-Datei im ZIP.
+## Browser extension for SMW Central
 
-- Für Spieler: Seite `/launcher` auf spinjump.club (Anleitung, ZIP-Download). ZIP bauen mit `python launcher/build-extension.py` und auf den Server nach `~/spinjump-data/downloads/SMWPlayExtension.zip` legen (wie die EXE, siehe `docs/DEPLOYMENT.md`).
-- Zum Ausprobieren: `chrome://extensions` → Entwicklermodus → „Entpackte Erweiterung laden“ → Ordner `launcher/extension`.
-- Beim ersten Klick fragt Chrome, ob smwcentral.net den Launcher öffnen darf; dort „Immer erlauben“ wählen.
-- Test: `node --test launcher/extension/content.test.js` (gegen den Seitenausschnitt von `?p=section&a=details&id=39701`). Gegen die echte Seite ist es noch nicht geprüft; ändert SMWC den Aufbau (`#file-download-button`, `#submission-header .title`), muss `content.js` nachgezogen werden.
-- Download-Zähler: Ein Download mit dem Launcher-Code ohne Login hat den SMWC-Zähler erhöht (610 → 611 am 24.11.2026).
-- Offen: viele ältere SMWC-Hacks haben nur IPS; der Launcher kann nur BPS.
+`extension/` is a small Chrome extension (Manifest V3, should also work in Firefox). On detail pages of smwcentral.net it adds a **Play** button next to "Download" that opens the launcher with the file SMWC itself links (`smwplay://play?url=https://dl.smwcentral.net/<id>/<file>&id=smwcentral:<name>-<id>&title=…`). It downloads nothing and only needs access to the page. The folder is named like the BPS file inside the ZIP.
 
-## Linux und macOS (GitHub Actions)
+- Build a ZIP with `python build-extension.py`.
+- To try it: `chrome://extensions` → developer mode → "Load unpacked" → folder `extension`.
+- On the first click Chrome asks whether smwcentral.net may open the launcher; choose "Always allow".
+- Test: `node --test extension/content.test.js` (against a saved excerpt of `?p=section&a=details&id=39701`). It has not been checked against the live site; if SMWC changes the page structure (`#file-download-button`, `#submission-header .title`), `content.js` has to follow.
+- Many older SMWC hacks only ship IPS patches; the launcher only supports BPS.
 
-`.github/workflows/launcher.yml` baut bei jeder Änderung in `launcher/` die Programme für Windows, Linux und macOS (PyInstaller, `launcher/smwplay.spec`) und lädt sie als Artefakte hoch (Actions → Lauf → Artifacts). Vorher laufen die Tests auf allen drei Systemen (Linux mit `xvfb`).
+## Next steps
 
-- **Linux:** eine Datei `SMWPlayLauncher`. Beim Speichern der Einrichtung legt der Launcher `~/.local/share/applications/smwplay.desktop` an und setzt per `xdg-mime` den Handler für `smwplay://`. Ohne Emulator-Eintrag öffnet `xdg-open` die ROM. Einstellungen unter `~/.config/Spinjump/launcher.json`.
-- **macOS:** `SMWPlayLauncher.app` (ZIP). Die `.app` meldet `smwplay://` über ihre Info.plist an; der Link kommt als Ereignis (`::tk::mac::LaunchURL`), nicht als Argument. Emulatoren als `.app` startet der Launcher mit `open -a`. Nicht signiert: beim ersten Start Rechtsklick → Öffnen. Einstellungen unter `~/Library/Application Support/Spinjump/`.
-- **Nicht getestet:** die Tests laufen nur auf Windows geprüft; Registrierung, macOS-Link-Ereignis und die gebauten Programme sind noch nie auf Linux/macOS gelaufen. Erst nach dem ersten Actions-Lauf auf echten Rechnern ausprobieren.
-- **Android:** geht mit Tkinter/PyInstaller nicht. Bräuchte eine eigene App (Link-Handler, BPS patchen, Emulator per Intent starten); noch nicht begonnen.
+- Load the list of trusted sites from spinjump.club (signed, with an application process for site owners), so new sites need no launcher update.
+- FXPak Pro: one target per Play button instead of a global one; selectable device.
+- Verify the emulator defaults with real starts (RetroArch, Snes9x, bsnes); a selection list instead of detection by file name.
+- Shared module with the SMWC Downloader & Patcher.
+- Sign the Windows and macOS builds (SmartScreen, Gatekeeper).
+- Android.
 
-## Nächste Schritte
+## Development
 
-- **Liste vertrauter Seiten von spinjump.club laden** (signiert, mit Bewerbung für Seitenbetreiber), damit neue Seiten kein Launcher-Update brauchen.
-- FXPak Pro: ein Ziel pro Play-Knopf statt global; Gerät wählbar.
-- Emulator-Voreinstellungen mit echten Starts prüfen (RetroArch, Snes9x, bsnes); Auswahlliste statt Erkennung nach Dateinamen.
-- Gemeinsames Modul mit dem SMWC Downloader & Patcher; SMWC-Erweiterung (prüfen, ob SMWC-Downloads per Programm ladbar sind).
-- EXE signieren (SmartScreen).
-
-## Entwickeln
-
-```powershell
-python -m pytest launcher/tests      # Tests
-python launcher/app.py               # Einrichtung
-python launcher/app.py "smwplay://play?url=https%3A%2F%2Fspinjump.club%2Fapi%2Fv1%2Fhacks%2Fmein-hack%2Fdownload%2F1.0"
-python -m PyInstaller --onefile --noconsole --name SMWPlayLauncher launcher/app.py   # EXE bauen
+```
+python -m pytest tests               # tests
+python app.py                        # setup window
+python app.py "smwplay://play?url=https%3A%2F%2Fspinjump.club%2Fapi%2Fv1%2Fhacks%2Fmy-hack%2Fdownload%2F1.0"
+python -m PyInstaller smwplay.spec   # build the program for the current system
 ```
 
-Die EXE liegt nicht im Repo. Die Seite verlinkt `/downloads/SMWPlayLauncher.exe` (`web/src/routes/launcher`); sie muss beim Deployment dort abgelegt werden.
+On Linux the tests need Tk and a display (`python3-tk`, `xvfb-run`).

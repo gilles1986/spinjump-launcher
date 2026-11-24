@@ -1,10 +1,10 @@
-// Fügt auf Detailseiten von SMW Central neben "Download" einen "Play"-Knopf ein.
-// Er öffnet den SMW Play Launcher mit der Adresse der ZIP/BPS, die SMWC selbst verlinkt.
-// Die Erweiterung lädt nichts und braucht keine Rechte außer der Seite selbst.
+// Adds a "Play" button next to "Download" on SMW Central detail pages.
+// It opens the SMW Play Launcher with the address of the ZIP/BPS that SMWC itself links.
+// The extension downloads nothing and needs no permissions beyond the page itself.
 (function () {
 	'use strict';
 
-	// Nur Dateien vom Download-Host von SMWC, wie sie der Download-Knopf verlinkt.
+	// Only files from SMWC's download host, as linked by the Download button.
 	var DOWNLOAD_URL = /^https:\/\/dl\.smwcentral\.net\/(\d+)\/([^\/?#]+)$/;
 
 	function slug(text) {
@@ -16,7 +16,7 @@
 			.replace(/-+$/, '');
 	}
 
-	// smwplay://play?url=<Datei>&id=smwcentral:<name>-<SMWC-id>&title=<Titel>
+	// smwplay://play?url=<file>&id=smwcentral:<name>-<SMWC-id>&title=<title>
 	function buildLink(href, title) {
 		var m = DOWNLOAD_URL.exec(href || '');
 		if (!m) return null;

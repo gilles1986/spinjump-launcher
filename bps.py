@@ -1,4 +1,4 @@
-"""BPS-Patches anwenden (Format von Flips/beat), nur mit der Standardbibliothek."""
+"""Apply BPS patches (Flips/beat format), standard library only."""
 import zlib
 
 MAX_TARGET_BYTES = 64 * 1024 * 1024
@@ -17,7 +17,7 @@ def crc32(data) -> int:
 
 
 def strip_copier_header(rom: bytes) -> bytes:
-    """Manche ROMs haben 512 Byte Kopierer-Header. Er ist nicht Teil des Patches."""
+    """Some ROMs carry a 512-byte copier header. It is not part of the patch."""
     if len(rom) > 512 and len(rom) % 1024 == 512:
         return rom[512:]
     return rom
@@ -77,7 +77,7 @@ def apply_bps(patch: bytes, source: bytes) -> bytes:
                     raise BpsError("bad_patch", "The patch points to nothing.")
                 out[o:o + length] = source[src_rel:src_rel + length]
                 src_rel += length
-            else:  # TargetCopy (darf sich überlappen)
+            else:  # TargetCopy (may overlap)
                 tgt_rel += off
                 if tgt_rel < 0 or tgt_rel >= o:
                     raise BpsError("bad_patch", "The patch points to nothing.")

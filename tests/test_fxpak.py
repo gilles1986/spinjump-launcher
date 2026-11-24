@@ -13,7 +13,7 @@ import fxpak  # noqa: E402
 
 
 class FakeQusb:
-    """Ein kleiner QUsb2Snes-Server: Dateisystem als dict, merkt sich die Befehle."""
+    """A small QUsb2Snes server: file system as a dict, records the commands."""
 
     def __init__(self, devices=("FXPak Pro",), existing=None):
         self.devices = list(devices)
@@ -37,7 +37,7 @@ class FakeQusb:
         return out
 
     def handle(self, ws):
-        pending = None  # (Pfad, noch erwartete Bytes, gesammelt)
+        pending = None  # (path, bytes still expected, collected)
         for msg in ws:
             if pending:
                 path, left, buf = pending
@@ -56,7 +56,7 @@ class FakeQusb:
                 ws.send(json.dumps({"Results": ["2.0", "", self.running]}))
             elif op == "List":
                 if args[0].rstrip("/") not in self.dirs and args[0] != "/":
-                    ws.close()  # wie der SD2SNES bei einem fehlenden Verzeichnis
+                    ws.close()  # like the SD2SNES does for a missing directory
                     return
                 ws.send(json.dumps({"Results": self.children(args[0])}))
             elif op == "MakeDir":
@@ -140,7 +140,7 @@ def test_unreachable_is_its_own_error_for_the_fallback_dialog(tmp_path):
     cfg = dict(core.DEFAULTS, hacks_dir=str(tmp_path), target="fxpak", fxpak_port="1")
     with pytest.raises(core.FxpakUnavailable):
         core.launch(cfg, str(tmp_path / "a.sfc"))
-    q = FakeQusb(devices=())  # QUsb2Snes läuft, aber kein Gerät: auch dann Umstellung anbieten
+    q = FakeQusb(devices=())  # QUsb2Snes runs but no device: offer the switch then too
     try:
         cfg2, rom = _cfg(tmp_path, q)
         with pytest.raises(core.FxpakUnavailable, match="No device"):

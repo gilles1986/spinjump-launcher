@@ -1,5 +1,5 @@
-# PyInstaller-Spezifikation für den SMW Play Launcher (alle Plattformen).
-# Aufruf aus dem Repo-Wurzelordner: python -m PyInstaller launcher/smwplay.spec
+# PyInstaller spec for the SMW Play Launcher (all platforms).
+# Run from the repository root: python -m PyInstaller smwplay.spec
 import sys
 
 a = Analysis(["app.py"], pathex=["."], hiddenimports=["fxpak", "websockets"])
