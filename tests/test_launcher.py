@@ -262,7 +262,7 @@ def test_default_args_per_emulator(tmp_path):
     (tmp_path / "cores" / core_file).write_text("")
     args = core.build_args(dict(core.DEFAULTS, emulator_path=str(ra)), r"C:\h\a b.sfc")
     assert args == ["-L", str(tmp_path / "cores" / core_file), r"C:\h\a b.sfc"]
-    (tmp_path / "cores" / "snes9x_libretro" + ext).write_text("")  # bevorzugter Core
+    (tmp_path / "cores" / ("snes9x_libretro" + ext)).write_text("")  # bevorzugter Core
     assert "snes9x_libretro" in core.emulator_defaults(str(ra))
 
 
