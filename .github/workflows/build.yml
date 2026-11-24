@@ -42,6 +42,11 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: dist
         run: tar -czf SMWPlayLauncher-linux.tar.gz SMWPlayLauncher
+      - name: Check macOS architectures
+        if: runner.os == 'macOS'
+        run: |
+          lipo -archs dist/SMWPlayLauncher.app/Contents/MacOS/SMWPlayLauncher | tee archs.txt
+          grep -q x86_64 archs.txt && grep -q arm64 archs.txt
       - name: Zip the macOS app
         if: runner.os == 'macOS'
         working-directory: dist
