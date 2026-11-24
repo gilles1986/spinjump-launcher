@@ -3,6 +3,7 @@ name: Build
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -17,7 +18,7 @@ jobs:
             out: dist/SMWPlayLauncher.exe
           - os: ubuntu-22.04
             name: linux
-            out: dist/SMWPlayLauncher
+            out: dist/SMWPlayLauncher-linux.tar.gz
           - os: macos-latest
             name: macos
             out: dist/SMWPlayLauncher-macos.zip
@@ -37,6 +38,10 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a python -m pytest tests; else python -m pytest tests; fi
       - name: Bauen
         run: python -m PyInstaller --noconfirm smwplay.spec
+      - name: Linux-Programm packen (behält das Ausführungsrecht)
+        if: runner.os == 'Linux'
+        working-directory: dist
+        run: tar -czf SMWPlayLauncher-linux.tar.gz SMWPlayLauncher
       - name: macOS-App zippen
         if: runner.os == 'macOS'
         working-directory: dist
@@ -46,3 +51,19 @@ jobs:
           name: SMWPlayLauncher-${{ matrix.name }}
           path: ${{ matrix.out }}
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: files
+          merge-multiple: true
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --title "SMW Play Launcher $GITHUB_REF_NAME" --generate-notes
