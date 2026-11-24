@@ -8,7 +8,7 @@ Requires your own unmodified Super Mario World ROM. No ROMs are hosted or downlo
 
 Builds for all three systems come from GitHub Actions (`.github/workflows/build.yml`):
 
-- **Release:** pushing a tag like `v0.1.0` builds everything and publishes a GitHub release with `SMWPlayLauncher.exe` (Windows), `SMWPlayLauncher-linux.tar.gz` and `SMWPlayLauncher-macos.zip`.
+- **Release:** pushing a tag like `v0.1.0` builds everything and publishes a GitHub release with `SMWPlayLauncher.exe` (Windows), `SMWPlayLauncher-linux.tar.gz`, `SMWPlayLauncher-macos-arm64.zip` (Apple Silicon) and `SMWPlayLauncher-macos-intel.zip` (Intel).
 - **Every push:** the same files are attached to the workflow run as artifacts.
 
 ## Link format
@@ -37,7 +37,7 @@ Settings are stored in `%APPDATA%\Spinjump\launcher.json` (Windows), `~/.config/
 
 - **Windows:** `SMWPlayLauncher.exe`. Saving the setup registers `smwplay://` under `HKCU\Software\Classes\smwplay`.
 - **Linux:** one file, `SMWPlayLauncher` (unpack the `.tar.gz`). Saving the setup writes `~/.local/share/applications/smwplay.desktop` and sets the handler for `smwplay://` with `xdg-mime`. Without an emulator configured, `xdg-open` opens the ROM.
-- **macOS:** `SMWPlayLauncher.app` (in the ZIP). The app declares `smwplay://` in its Info.plist; the link arrives as an event (`::tk::mac::LaunchURL`), not as an argument. Emulators that are `.app` bundles are started with `open -a`. The app is not signed: on first start use right click → Open.
+- **macOS:** `SMWPlayLauncher.app` (in the ZIP; pick `arm64` for Apple Silicon, `intel` for Intel Macs). The app declares `smwplay://` in its Info.plist; the link arrives as an event (`::tk::mac::LaunchURL`), not as an argument. Emulators that are `.app` bundles are started with `open -a`. The app is not signed: on first start use right click → Open.
 - **Not verified on real machines:** the tests pass on all three systems in CI, but registering the link handler, the macOS link event and the built programs have not yet been tried on real Linux and macOS machines.
 - **Android:** not supported. It would need its own app (link handler, BPS patching, starting the emulator by intent).
 

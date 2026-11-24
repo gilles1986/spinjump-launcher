@@ -19,9 +19,12 @@ jobs:
           - os: ubuntu-22.04
             name: linux
             out: dist/SMWPlayLauncher-linux.tar.gz
-          - os: macos-latest
-            name: macos
-            out: dist/SMWPlayLauncher-macos.zip
+          - os: macos-latest          # Apple Silicon
+            name: macos-arm64
+            out: dist/SMWPlayLauncher-macos-arm64.zip
+          - os: macos-15-intel        # Intel
+            name: macos-intel
+            out: dist/SMWPlayLauncher-macos-intel.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -42,15 +45,10 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: dist
         run: tar -czf SMWPlayLauncher-linux.tar.gz SMWPlayLauncher
-      - name: Check macOS architectures
-        if: runner.os == 'macOS'
-        run: |
-          lipo -archs dist/SMWPlayLauncher.app/Contents/MacOS/SMWPlayLauncher | tee archs.txt
-          grep -q x86_64 archs.txt && grep -q arm64 archs.txt
       - name: Zip the macOS app
         if: runner.os == 'macOS'
         working-directory: dist
-        run: ditto -c -k --keepParent SMWPlayLauncher.app SMWPlayLauncher-macos.zip
+        run: ditto -c -k --keepParent SMWPlayLauncher.app "$(basename '${{ matrix.out }}')"
       - uses: actions/upload-artifact@v7
         with:
           name: SMWPlayLauncher-${{ matrix.name }}
