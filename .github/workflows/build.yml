@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            out: dist/SMWPlayLauncher.exe
+          - os: ubuntu-22.04
+            name: linux
+            out: dist/SMWPlayLauncher
+          - os: macos-latest
+            name: macos
+            out: dist/SMWPlayLauncher-macos.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tk unter Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb
+      - run: pip install -r requirements.txt pyinstaller
+      - name: Tests
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a python -m pytest tests; else python -m pytest tests; fi
+      - name: Bauen
+        run: python -m PyInstaller --noconfirm smwplay.spec
+      - name: macOS-App zippen
+        if: runner.os == 'macOS'
+        working-directory: dist
+        run: ditto -c -k --keepParent SMWPlayLauncher.app SMWPlayLauncher-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SMWPlayLauncher-${{ matrix.name }}
+          path: ${{ matrix.out }}
+          if-no-files-found: error

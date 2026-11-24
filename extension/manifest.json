@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "SMW Play for SMW Central",
+  "version": "0.1.0",
+  "description": "Adds a Play button to SMW Central hack pages. It opens the SMW Play Launcher, which downloads, patches and starts the hack.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.smwcentral.net/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
