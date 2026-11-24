@@ -257,9 +257,10 @@ def test_default_args_per_emulator(tmp_path):
     assert core.emulator_defaults(r"C:\x\Mesen.exe") == '"{rom}"'
     ra = tmp_path / "retroarch.exe"
     (tmp_path / "cores").mkdir()
-    (tmp_path / "cores" / "bsnes_libretro.dll").write_text("")
+    core_file = "bsnes_libretro" + (".dll" if sys.platform == "win32" else ".dylib" if sys.platform == "darwin" else ".so")
+    (tmp_path / "cores" / core_file).write_text("")
     args = core.build_args(dict(core.DEFAULTS, emulator_path=str(ra)), r"C:\h\a b.sfc")
-    assert args == ["-L", str(tmp_path / "cores" / "bsnes_libretro.dll"), r"C:\h\a b.sfc"]
+    assert args == ["-L", str(tmp_path / "cores" / core_file), r"C:\h\a b.sfc"]
     (tmp_path / "cores" / "snes9x_libretro.dll").write_text("")  # bevorzugter Core
     assert "snes9x_libretro" in core.emulator_defaults(str(ra))
 
